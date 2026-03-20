@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	//"io"
+	"io"
 	"os"
 	//"time"
 
@@ -14,7 +14,7 @@ var otoCtx *oto.Context
 var readyChan chan struct{}
 var contextCreated bool = false
 
-var player *oto.Player
+var decodedMp3s [24][]byte
 
 func createContext(op oto.NewContextOptions) (*oto.Context, chan struct{}) {
 	otoCtx, readyChan, err := oto.NewContext(&op)
@@ -25,50 +25,47 @@ func createContext(op oto.NewContextOptions) (*oto.Context, chan struct{}) {
 	return otoCtx, readyChan
 }
 
-func playSound(filename string) {
-	// read mp3 into mem
-	fileBytes, err := os.ReadFile(filename)
+func loadSounds(files [24]string) {
+	for i, file := range files {
+		// read mp3 into mem
+		fileBytes, err := os.ReadFile(file)
 
-	if err != nil {
-		panic("error reading " + filename + err.Error())
+		if err != nil {
+			panic("error reading " + file + err.Error())
+		}
+
+		// decode
+		fileBytesReader := bytes.NewReader(fileBytes)
+
+		decoder, err := mp3.NewDecoder(fileBytesReader)
+		if err != nil {
+			panic("error decoding mp3" + err.Error())
+		}
+
+		pcm, err := io.ReadAll(decoder)
+
+		decodedMp3s[i] = pcm
 	}
+}
 
-	// decode into reader obj
-	fileBytesReader := bytes.NewReader(fileBytes)
-
-	decodedMp3, err := mp3.NewDecoder(fileBytesReader)
-	if err != nil {
-		panic("error decoding mp3" + err.Error())
-	}
-
-	// Options
-	op := &oto.NewContextOptions{}
-	op.SampleRate = 44100
-	op.ChannelCount = 2
-	op.Format = oto.FormatSignedInt16LE
-	op.BufferSize = 16384
-
+func playSound(note int) {
 	if !contextCreated {
+		// Options
+		op := &oto.NewContextOptions{}
+		op.SampleRate = 44100
+		op.ChannelCount = 2
+		op.Format = oto.FormatSignedInt16LE
+		op.BufferSize = 4096
+
 		otoCtx, readyChan = createContext(*op)
 		contextCreated = true
+
+		// wait on the channel
+		<-readyChan
 	}
 
-	player = otoCtx.NewPlayer(decodedMp3) // paused by default
+	reader := bytes.NewReader(decodedMp3s[note-1])
+	player := otoCtx.NewPlayer(reader)
 
-	player.Play() // Play() is async
-
-	// wait on the channel
-	<-readyChan
-
-	/*for player.IsPlaying() {
-		time.Sleep(time.Millisecond)
-	}*/
-	//
-	// Now that the sound finished playing, we can restart from the beginning (or go to any location in the sound) using seek
-	// newPos, err := player.(io.Seeker).Seek(0, io.SeekStart)
-	// if err != nil{
-	//     panic("player.Seek failed: " + err.Error())
-	// }
-	// println("Player is now at position:", newPos)
-	// player.Play()
+	player.Play()
 }

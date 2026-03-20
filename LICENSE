@@ -1,3 +1,10 @@
+This project includes dependencies that are licensed under other licenses:
+
+- MIT License: bubbletea
+- Apache License 2.0: oto, go-mp3
+
+For the full text of these licenses, see the respective LICENSE files in their repositories.
+
                     GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
