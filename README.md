@@ -1,12 +1,24 @@
 # TUI Chord Player
 
 Written in go
-For TUI music enjoyers to make getting harmonic ideas out easily.
-Perchance local in browser or web based at some point
+To facilitate TUI music enjoyers in getting harmonic ideas out easily.
 
 ## Instructions
 
+Currently just dev setup to run from source
+
+```
+git clone https://github.com/tango8/tui-musical-chord-player.git
+cd tui-musical-chord-player
+
+go mod tidy
+
+go run .
+```
+
 ## Examples
+
+![example](./docs/early-example.png)
 
 ## Citations
 
@@ -15,12 +27,6 @@ Perchance local in browser or web based at some point
 <https://github.com/hajimehoshi/go-mp3> v0.3.4 (Apache-2.0 License)
 
 default piano sound - <https://www.polyphone.io/en/soundfonts/instrument-sets/640-gm-sf2>
-
-Indirect dependencies needed?
-
-## TODO
-
-making sure ALSA and other dependencies work, make sure cross platform works
 
 ### future functionalities
 

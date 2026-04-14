@@ -69,3 +69,8 @@ func playSound(note int) {
 
 	player.Play()
 }
+
+// list
+func playChord(notes []int) {
+
+}

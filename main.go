@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"strings"
-	//"time"
+	"time"
 
 	//"github.com/tango8/good-person-checker/message"
 
@@ -11,17 +11,9 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
-type pressedState uint
+type unpressed int
 
-const (
-	one pressedState = iota
-	two
-	three
-	four
-	five
-	six
-	seven
-)
+type pressed int
 
 type KeybLayout int
 
@@ -30,9 +22,13 @@ const (
 	DVORAK
 )
 
+type choice struct {
+	name    string
+	pressed bool
+}
+
 type model struct {
-	state   pressedState
-	choices [7]string // possibly make this up to 9/10 because there is numbers up to 9 and 0
+	choices [7]choice // possibly make this up to 9/10 because there is numbers up to 9 and 0
 	cursor  int
 	//selected map[int]struct{}
 	layout KeybLayout
@@ -65,18 +61,33 @@ var filesToLoad [24]string = [24]string{
 	"soundfiles/defaultpiano/B5.mp3",
 }
 
+var sustainTime time.Duration = 280 * time.Millisecond
+
+var stateTimers [7]*time.Timer
+
 func initialModel(mode Mode) model {
 	var diatonic [7]string
 
 	switch mode {
+	default:
+		diatonic = ionianDiatonic
 	case Ionian:
 		diatonic = ionianDiatonic
 	case Aeolian:
 		diatonic = aeolianDiatonic
 	}
 
+	var choices [7]choice
+	for i, name := range diatonic {
+		choices[i] = choice{
+			name:    name,
+			pressed: false,
+		}
+	}
+
 	return model{
-		choices: diatonic,
+		choices: choices,
+		layout:  QWERTY,
 	}
 }
 
@@ -87,68 +98,88 @@ func (m model) Init() tea.Cmd {
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
+	case unpressed:
+		m.choices[msg].pressed = false
+	case pressed:
+		m.choices[msg].pressed = true
+
 	case tea.KeyPressMsg:
 		switch msg.String() {
+		/*case "m":
+		activeMod	*/
+		case "M":
 		case "ctrl+c":
 			return m, tea.Quit
 		case "enter", "space":
-			playSound(1)
-			playSound(5)
-			playSound(8)
-			playSound(12)
+			//playChord(getChord(Major, []Extension{MajorSeventh})
 		case "1":
-			playSound(1)
-			playSound(5)
-			playSound(8)
-			playSound(12)
-			m.state = one
+			return m, func() tea.Msg {
+				playSound(1)
+				playSound(5)
+				playSound(8)
+				playSound(12)
+				return pressed(0)
+			}
 		case "2":
-			playSound(3)
-			playSound(6)
-			playSound(10)
-			//playSound(1)
-			playSound(13)
-			m.state = two
+			return m, func() tea.Msg {
+				playSound(3)
+				playSound(6)
+				playSound(10)
+				//playSound(1)
+				playSound(13)
+				return pressed(1)
+			}
 		case "3":
-			playSound(5)
-			playSound(8)
-			playSound(12)
-			//playSound(3)
-			playSound(15)
-			m.state = three
+			return m, func() tea.Msg {
+				playSound(5)
+				playSound(8)
+				playSound(12)
+				//playSound(3)
+				playSound(15)
+				return pressed(2)
+			}
 		case "4":
-			playSound(6)
-			playSound(10)
-			playSound(1)
-			//playSound(5)
-			playSound(17)
-			m.state = four
+			return m, func() tea.Msg {
+				playSound(6)
+				playSound(10)
+				//playSound(1)
+				//playSound(5)
+				playSound(13)
+				playSound(17)
+				return pressed(3)
+			}
 		case "5":
-			playSound(8)
-			playSound(12)
-			//playSound(3)
-			//playSound(7)
-			playSound(15)
-			playSound(19)
-			m.state = five
+			return m, func() tea.Msg {
+				playSound(8)
+				playSound(12)
+				//playSound(3)
+				//playSound(7)
+				playSound(15)
+				playSound(19)
+				return pressed(4)
+			}
 		case "6":
-			playSound(10)
-			//playSound(1)
-			//playSound(5)
-			//playSound(8)
-			playSound(13)
-			playSound(17)
-			playSound(20)
-			m.state = six
+			return m, func() tea.Msg {
+				playSound(10)
+				//playSound(1)
+				//playSound(5)
+				//playSound(8)
+				playSound(13)
+				playSound(17)
+				playSound(20)
+				return pressed(5)
+			}
 		case "7":
-			playSound(12)
-			//playSound(3)
-			//playSound(6)
-			//playSound(9)
-			playSound(15)
-			playSound(18)
-			playSound(21)
-			m.state = seven
+			return m, func() tea.Msg {
+				playSound(12)
+				//playSound(3)
+				//playSound(6)
+				//playSound(9)
+				playSound(15)
+				playSound(18)
+				playSound(22)
+				return pressed(6)
+			}
 		}
 
 		if m.layout == QWERTY {
@@ -187,37 +218,17 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() tea.View {
 	// Header
 	var s strings.Builder
-	//s = "go chord player\n\n"
+	s.WriteString(getCurrentKey() + "\n\n")
 
 	for i, choice := range m.choices {
 
 		keyboardKey := i + 1
 
-		switch m.state {
-		case one:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
-		case two:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
-		case three:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
-		case four:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
-		case five:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
-		case six:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
-		case seven:
-			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(fmt.Sprint(choice))))
-			continue
+		if choice.pressed {
+			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, pressedModelStyle.Render(choice.name)))
+		} else {
+			s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, modelStyle.Render(choice.name)))
 		}
-
-		s.WriteString(lipgloss.JoinHorizontal(lipgloss.Top, modelStyle.Render(fmt.Sprint(choice))))
 
 		s.WriteString(helpStyle.Render(fmt.Sprint(keyboardKey)))
 	}
